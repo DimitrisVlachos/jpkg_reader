@@ -1,4 +1,3 @@
-
 /*
 	Author : Dimitris Vlachos (DimitrisV22@gmail.com @ github.com/DimitrisVlachos)
 
@@ -11,6 +10,10 @@
 #ifndef __filesystem__hpp__
 #define __filesystem__hpp__
 #include "file_stream.hpp" /*Grab it from my lib_bitstreams repo : https://github.com/DimitrisVlachos/lib_bitstreams */
+#include <iostream>
+#include <cstring>
+#include <string>
+#include <vector>
 #include <zlib.h>
 
 namespace file_system {
