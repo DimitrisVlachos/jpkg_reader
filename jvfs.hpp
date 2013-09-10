@@ -142,8 +142,77 @@ class file_system_pkg_reader_c : public file_system_if {
 		return res;
 	}
 
+	/*0101 format : Supports compressed headers*/
+	bool read_hdr0101() {	
+		
+		if (m_reader->eof())
+			return false;
+
+		const uint64_t hdr_offs = decode64(m_reader);
+		if (m_reader->eof())
+			return false;
+
+		if (hdr_offs >= m_reader->size())
+			return false;
+
+		m_reader->seek(hdr_offs);
+
+		const uint64_t hdr_block_sz = decode64(m_reader); 
+		if (m_reader->eof())
+			return false;
+
+		uint8_t* hdr = new uint8_t[hdr_block_sz];
+		if (!hdr)
+			return false;
+
+		if (private_section::decompress_from_stream_to_mem(m_reader,hdr,hdr_block_sz,16*1024,m_dcmp_chunk) != Z_OK) {
+			delete[] hdr;
+			return false;
+		}
+
+		file_streams::file_stream_if* unc_hdr_rd = new file_streams::file_mem_reader_c(&hdr[0],hdr_block_sz,true);
+		if (!unc_hdr_rd) {
+			delete[] hdr;
+			return false;
+		}
+
+		const uint64_t entry_cnt = decode64(unc_hdr_rd),lim = m_reader->size() ;
+ 
+
+		m_entries.clear();
+
+		for (uint64_t i = 0U;i < entry_cnt;++i) {
+			const uint64_t addr = decode64(unc_hdr_rd); 
+
+			if (unc_hdr_rd->eof()) {
+				delete unc_hdr_rd;  //will delete[] shared hdr
+				return false;
+			}
+
+			if (addr > lim) {
+				delete unc_hdr_rd;  //will delete[] shared hdr
+				return false;
+			}
+
+			const uint64_t size = decode64(unc_hdr_rd);
+
+			if (unc_hdr_rd->eof()) {
+				delete unc_hdr_rd;  //will delete[] shared hdr
+				return false;
+			}
+
+			const std::string name = decode_string(unc_hdr_rd);
+
+			m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(name,addr,size)));
+		}
+		
+		delete unc_hdr_rd; //will delete[] shared hdr
+		return !m_entries.empty();
+	}
+
 	bool read_hdr() {
 		const std::string cs_signature = "JVFS0100";
+		const std::string cs_signature_v1 = "JVFS0101";
 
 		if (!m_reader)
 			return false;
@@ -152,8 +221,11 @@ class file_system_pkg_reader_c : public file_system_if {
 		{
 			std::string hdr;
 			hdr = decode_string(m_reader);
-			if (hdr != cs_signature)
+			if (hdr != cs_signature) {
+				if (hdr == cs_signature_v1)
+					return read_hdr0101();
 				return false;
+			}
 			if (m_reader->eof())
 				return false;
 		}
@@ -162,8 +234,8 @@ class file_system_pkg_reader_c : public file_system_if {
 		if (m_reader->eof())
 			return false;
 
+		m_entries.clear();
 
-		//printf("%llu entries in pkg\n",entry_cnt);
 		for (uint64_t i = 0U;i < entry_cnt;++i) {
 			const uint64_t addr = decode64(m_reader); 
 
@@ -290,4 +362,3 @@ class file_system_pkg_reader_c : public file_system_if {
 	}
 }
 #endif
-
