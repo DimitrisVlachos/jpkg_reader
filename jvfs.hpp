@@ -1,3 +1,4 @@
+
 /*
 	Author : Dimitris Vlachos (DimitrisV22@gmail.com @ github.com/DimitrisVlachos)
 
@@ -13,9 +14,8 @@
 #include <iostream>
 #include <cstring>
 #include <string>
-#include <vector>
+#include <map>
 #include <zlib.h>
-
 namespace file_system {
 	namespace private_section {
 		 static int32_t decompress_from_stream_to_mem(file_streams::file_stream_if* source,uint8_t* dst,uint32_t max_len,uint32_t chunk_size,uint8_t* chunk);
@@ -48,24 +48,24 @@ class file_system_if {
 template <class reader_type_c>
 class file_system_reader_c : public file_system_if {
 	private:
-	std::vector<file_system_entry_t> m_entries;
-	
-	file_system_entry_t* register_entry(const std::string& name) {
-		file_system_entry_t tmp;
-		file_streams::file_stream_if* reader;
+	std::map<std::string,file_system_entry_t> m_entries;
 
-		for (uint32_t i = 0U,j = m_entries.size();i < j;++i) {
-			if (m_entries[i].name == name) 
-				return &m_entries[i];
-		}
- 
+	file_system_entry_t* register_entry(const std::string& name) {
+		file_streams::file_stream_if* reader;
+		std::map<std::string,file_system_entry_t>::iterator it;
+
+		it = m_entries.find(name);
+		if (it != m_entries.end())
+			return &it->second;
+
 		reader = new reader_type_c( name.c_str());
 		if (reader) {
-			m_entries.push_back(file_system_entry_t(name,0,reader->size()));
-			tmp.size = reader->size();
+			m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(name,0,reader->size())));
 			delete reader;
 
-			return &m_entries.back();
+			it = m_entries.find(name);
+			if (it != m_entries.end())
+				return &it->second;
 		}  
 		
 		return 0;//Error!		
@@ -103,7 +103,7 @@ class file_system_reader_c : public file_system_if {
 template <class reader_type_c>
 class file_system_pkg_reader_c : public file_system_if {
 	private:
-	std::vector<file_system_entry_t> m_entries;
+	std::map<std::string,file_system_entry_t> m_entries;
 	file_streams::file_stream_if* m_reader;
 	uint8_t* m_dcmp_chunk;
 
@@ -165,8 +165,6 @@ class file_system_pkg_reader_c : public file_system_if {
 		if (m_reader->eof())
 			return false;
 
-		m_entries.clear();
-		m_entries.reserve(entry_cnt);
 
 		//printf("%llu entries in pkg\n",entry_cnt);
 		for (uint64_t i = 0U;i < entry_cnt;++i) {
@@ -185,9 +183,7 @@ class file_system_pkg_reader_c : public file_system_if {
 
 			const std::string name = decode_string(m_reader);
 
-			m_entries.push_back(file_system_entry_t(name,addr,size));
-
-			//printf("add %s %llu %llu/%llu\n",name.c_str(),addr,size,lim);
+			m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(name,addr,size)));
 		}
 
 		return !m_entries.empty();
@@ -206,10 +202,11 @@ class file_system_pkg_reader_c : public file_system_if {
 	}
 
 	file_system_entry_t* find_entry(const std::string& name) {	
-		for (uint32_t i = 0U,j = m_entries.size();i < j;++i) {
-			if (m_entries[i].name == name) 
-				return &m_entries[i];
-		}
+		std::map<std::string,file_system_entry_t>::iterator it;
+
+		it = m_entries.find(name);
+		if (it != m_entries.end())
+			return &it->second;
 		return 0;
 	}
 
@@ -296,5 +293,4 @@ class file_system_pkg_reader_c : public file_system_if {
 	}
 }
 #endif
-
 
