@@ -7,14 +7,15 @@
 	reading off dvd/cd/bluray/ram-fs/embedded media).
 */
 
-#ifndef __filesystem__hpp__
-#define __filesystem__hpp__
+#ifndef __jvfs__hpp__
+#define __jvfs__hpp__
 #include "file_stream.hpp" /*Grab it from my lib_bitstreams repo : https://github.com/DimitrisVlachos/lib_bitstreams */
 #include <iostream>
 #include <cstring>
 #include <string>
 #include <map>
 #include <zlib.h>
+
 namespace file_system {
 	namespace private_section {
 		 static int32_t decompress_from_stream_to_mem(file_streams::file_stream_if* source,uint8_t* dst,uint32_t max_len,uint32_t chunk_size,uint8_t* chunk);
