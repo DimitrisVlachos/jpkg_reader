@@ -1,4 +1,3 @@
-
 /*
 	Author : Dimitris Vlachos (DimitrisV22@gmail.com @ github.com/DimitrisVlachos)
 
@@ -60,12 +59,9 @@ class file_system_reader_c : public file_system_if {
 
 		reader = new reader_type_c( name.c_str());
 		if (reader) {
-			m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(name,0,reader->size())));
+			const uint64_t sz = reader->size();
 			delete reader;
-
-			it = m_entries.find(name);
-			if (it != m_entries.end())
-				return &it->second;
+			return &(m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(name,0,sz)))).second;
 		}  
 		
 		return 0;//Error!		
