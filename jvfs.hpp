@@ -52,17 +52,21 @@ class file_system_reader_c : public file_system_if {
 
 	file_system_entry_t* register_entry(const std::string& name) {
 		file_streams::file_stream_if* reader;
-		std::map<std::string,file_system_entry_t>::iterator it;
+ 
+		std::pair<std::map<std::string,file_system_entry_t>::iterator,bool> it;
+		std::map<std::string,file_system_entry_t>::iterator it2;
+		it = m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(name,0,0)) );
 
-		it = m_entries.find(name);
-		if (it != m_entries.end())
-			return &it->second;
+		it2 = it.first;
+ 		if (false == it.second) {
+			return &it2->second;
+		}
 
 		reader = new reader_type_c( name.c_str());
 		if (reader) {
-			const uint64_t sz = reader->size();
+			it2->second.size = reader->size();
 			delete reader;
-			return &(m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(name,0,sz)))).second;
+			return  &it2->second;
 		}  
 		
 		return 0;//Error!		
