@@ -48,21 +48,34 @@ class file_system_if {
 template <class reader_type_c>
 class file_system_reader_c : public file_system_if {
 	private:
+	std::string m_path;
+	std::string m_sep;
 	std::map<std::string,file_system_entry_t> m_entries;
+
+	inline const std::string invert_sep() const { return (m_sep == "/") ? "\\" : "/"; }
 
 	file_system_entry_t* register_entry(const std::string& name) {
 		file_streams::file_stream_if* reader;
- 
+ 		std::string fpath;
 		std::pair<std::map<std::string,file_system_entry_t>::iterator,bool> it;
 		std::map<std::string,file_system_entry_t>::iterator it2;
-		it = m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(name,0,0)) );
 
-		it2 = it.first;
- 		if (false == it.second) {
-			return &it2->second;
+		fpath = m_path + name;
+		{
+			const char inv = invert_sep()[0];
+			for (uint32_t i = 0,j = fpath.length();i < j;++i) {
+				if (fpath[i] == inv)
+					fpath[i] = m_sep[0];
+			}
 		}
 
-		reader = new reader_type_c( name.c_str());
+		it = m_entries.insert( std::pair<std::string,file_system_entry_t>(name,file_system_entry_t(fpath,0,0)) );
+
+		it2 = it.first;
+		if (false == it.second)
+			return &it2->second;
+
+		reader = new reader_type_c( fpath.c_str() );
 		if (reader) {
 			it2->second.size = reader->size();
 			delete reader;
@@ -73,10 +86,24 @@ class file_system_reader_c : public file_system_if {
 	}
 
 	public:
-	file_system_reader_c() {}
+	file_system_reader_c() : m_path(""), m_sep("/")  {}
 	~file_system_reader_c() {  close(); }
 
-	bool open(const std::string& path) { return true; }
+	void set_path_separator(const std::string& sep) {
+		m_sep = sep;
+	}
+
+	bool open(const std::string& path) { 
+		m_path = path; 
+		if (!m_path.empty()) {
+			if (!m_sep.empty()) {
+				if (m_sep[0] != m_path[m_path.length()-1])
+					m_path += m_sep[0];
+			}
+		}
+		return true; 
+	}
+
 	void close() { }
  
 
@@ -95,7 +122,7 @@ class file_system_reader_c : public file_system_if {
 		return true;
 	}
 
-	file_system_entry_t* find_entry(const std::string& name) {	
+	file_system_entry_t* find_entry(const std::string& name) {			
 		return register_entry(name);
 	}
 };
@@ -282,6 +309,8 @@ class file_system_pkg_reader_c : public file_system_if {
 			return &it->second;
 		return 0;
 	}
+	
+	void set_path_separator(const std::string& sep) {}
 
 	void close() {
 		if (m_reader) {
